@@ -1,4 +1,2 @@
 [console_scripts]
-
-[gui_scripts]
-
+normalizer = charset_normalizer.cli:cli_detect
