@@ -1,325 +1,311 @@
 from __future__ import annotations
 
-__all__ = (
-    "MemoryObjectReceiveStream",
-    "MemoryObjectSendStream",
-    "MemoryObjectStreamStatistics",
-)
+import logging
+from datetime import datetime, timezone
+from errno import ENOTEMPTY
+from io import BytesIO
+from pathlib import PurePath, PureWindowsPath
+from typing import Any, ClassVar
 
-import warnings
-from collections import OrderedDict, deque
-from dataclasses import dataclass, field
-from types import TracebackType
-from typing import Generic, NamedTuple, TypeVar
+from fsspec import AbstractFileSystem
+from fsspec.implementations.local import LocalFileSystem
+from fsspec.utils import stringify_path
 
-from .. import (
-    BrokenResourceError,
-    ClosedResourceError,
-    EndOfStream,
-    WouldBlock,
-)
-from .._core._testing import TaskInfo, get_current_task
-from ..abc import Event, ObjectReceiveStream, ObjectSendStream
-from ..lowlevel import checkpoint
-
-T_Item = TypeVar("T_Item")
-T_co = TypeVar("T_co", covariant=True)
-T_contra = TypeVar("T_contra", contravariant=True)
+logger = logging.getLogger("fsspec.memoryfs")
 
 
-class MemoryObjectStreamStatistics(NamedTuple):
-    current_buffer_used: int  #: number of items stored in the buffer
-    #: maximum number of items that can be stored on this stream (or :data:`math.inf`)
-    max_buffer_size: float
-    open_send_streams: int  #: number of unclosed clones of the send stream
-    open_receive_streams: int  #: number of unclosed clones of the receive stream
-    #: number of tasks blocked on :meth:`MemoryObjectSendStream.send`
-    tasks_waiting_send: int
-    #: number of tasks blocked on :meth:`MemoryObjectReceiveStream.receive`
-    tasks_waiting_receive: int
+class MemoryFileSystem(AbstractFileSystem):
+    """A filesystem based on a dict of BytesIO objects
 
+    This is a global filesystem so instances of this class all point to the same
+    in memory filesystem.
+    """
 
-@dataclass(eq=False)
-class _MemoryObjectItemReceiver(Generic[T_Item]):
-    task_info: TaskInfo = field(init=False, default_factory=get_current_task)
-    item: T_Item = field(init=False)
+    store: ClassVar[dict[str, Any]] = {}  # global, do not overwrite!
+    pseudo_dirs = [""]  # global, do not overwrite!
+    protocol = "memory"
+    root_marker = "/"
 
-    def __repr__(self) -> str:
-        # When item is not defined, we get following error with default __repr__:
-        # AttributeError: 'MemoryObjectItemReceiver' object has no attribute 'item'
-        item = getattr(self, "item", None)
-        return f"{self.__class__.__name__}(task_info={self.task_info}, item={item!r})"
+    @classmethod
+    def _strip_protocol(cls, path):
+        if isinstance(path, PurePath):
+            if isinstance(path, PureWindowsPath):
+                return LocalFileSystem._strip_protocol(path)
+            else:
+                path = stringify_path(path)
 
+        path = path.removeprefix("memory://")
+        if "::" in path or "://" in path:
+            return path.rstrip("/")
+        path = path.lstrip("/").rstrip("/")
+        return "/" + path if path else ""
 
-@dataclass(eq=False)
-class _MemoryObjectStreamState(Generic[T_Item]):
-    max_buffer_size: float = field()
-    buffer: deque[T_Item] = field(init=False, default_factory=deque)
-    open_send_channels: int = field(init=False, default=0)
-    open_receive_channels: int = field(init=False, default=0)
-    waiting_receivers: OrderedDict[Event, _MemoryObjectItemReceiver[T_Item]] = field(
-        init=False, default_factory=OrderedDict
-    )
-    waiting_senders: OrderedDict[Event, T_Item] = field(
-        init=False, default_factory=OrderedDict
-    )
+    def ls(self, path, detail=True, **kwargs):
+        path = self._strip_protocol(path)
+        if path in self.store:
+            # there is a key with this exact name
+            if not detail:
+                return [path]
+            return [
+                {
+                    "name": path,
+                    "size": self.store[path].size,
+                    "type": "file",
+                    "created": self.store[path].created.timestamp(),
+                }
+            ]
+        paths = set()
+        starter = path + "/"
+        out = []
+        for p2 in tuple(self.store):
+            if p2.startswith(starter):
+                if "/" not in p2[len(starter) :]:
+                    # exact child
+                    out.append(
+                        {
+                            "name": p2,
+                            "size": self.store[p2].size,
+                            "type": "file",
+                            "created": self.store[p2].created.timestamp(),
+                        }
+                    )
+                elif len(p2) > len(starter):
+                    # implied child directory
+                    ppath = starter + p2[len(starter) :].split("/", 1)[0]
+                    if ppath not in paths:
+                        out = out or []
+                        out.append(
+                            {
+                                "name": ppath,
+                                "size": 0,
+                                "type": "directory",
+                            }
+                        )
+                        paths.add(ppath)
+        for p2 in self.pseudo_dirs:
+            if p2.startswith(starter):
+                if "/" not in p2[len(starter) :]:
+                    # exact child pdir
+                    if p2 not in paths:
+                        out.append({"name": p2, "size": 0, "type": "directory"})
+                        paths.add(p2)
+                else:
+                    # directory implied by deeper pdir
+                    ppath = starter + p2[len(starter) :].split("/", 1)[0]
+                    if ppath not in paths:
+                        out.append({"name": ppath, "size": 0, "type": "directory"})
+                        paths.add(ppath)
+        if not out:
+            if path in self.pseudo_dirs:
+                # empty dir
+                return []
+            raise FileNotFoundError(path)
+        if detail:
+            return out
+        return sorted([f["name"] for f in out])
 
-    def statistics(self) -> MemoryObjectStreamStatistics:
-        return MemoryObjectStreamStatistics(
-            len(self.buffer),
-            self.max_buffer_size,
-            self.open_send_channels,
-            self.open_receive_channels,
-            len(self.waiting_senders),
-            len(self.waiting_receivers),
-        )
+    def mkdir(self, path, create_parents=True, **kwargs):
+        path = self._strip_protocol(path)
+        if path in self.store or path in self.pseudo_dirs:
+            raise FileExistsError(path)
+        if self._parent(path).strip("/") and self.isfile(self._parent(path)):
+            raise NotADirectoryError(self._parent(path))
+        if create_parents and self._parent(path).strip("/"):
+            try:
+                self.mkdir(self._parent(path), create_parents, **kwargs)
+            except FileExistsError:
+                pass
+        if path and path not in self.pseudo_dirs:
+            self.pseudo_dirs.append(path)
 
-
-@dataclass(eq=False)
-class MemoryObjectReceiveStream(Generic[T_co], ObjectReceiveStream[T_co]):
-    _state: _MemoryObjectStreamState[T_co]
-    _closed: bool = field(init=False, default=False)
-
-    def __post_init__(self) -> None:
-        self._state.open_receive_channels += 1
-
-    def receive_nowait(self) -> T_co:
-        """
-        Receive the next item if it can be done without waiting.
-
-        :return: the received item
-        :raises ~anyio.ClosedResourceError: if this send stream has been closed
-        :raises ~anyio.EndOfStream: if the buffer is empty and this stream has been
-            closed from the sending end
-        :raises ~anyio.WouldBlock: if there are no items in the buffer and no tasks
-            waiting to send
-
-        """
-        if self._closed:
-            raise ClosedResourceError
-
-        if self._state.waiting_senders:
-            # Get the item from the next sender
-            send_event, item = self._state.waiting_senders.popitem(last=False)
-            self._state.buffer.append(item)
-            send_event.set()
-
-        if self._state.buffer:
-            return self._state.buffer.popleft()
-        elif not self._state.open_send_channels:
-            raise EndOfStream
-
-        raise WouldBlock
-
-    async def receive(self) -> T_co:
-        await checkpoint()
+    def makedirs(self, path, exist_ok=False):
         try:
-            return self.receive_nowait()
-        except WouldBlock:
-            # Add ourselves in the queue
-            receive_event = Event()
-            receiver = _MemoryObjectItemReceiver[T_co]()
-            self._state.waiting_receivers[receive_event] = receiver
-
-            try:
-                await receive_event.wait()
-            finally:
-                self._state.waiting_receivers.pop(receive_event, None)
-
-            try:
-                return receiver.item
-            except AttributeError:
-                raise EndOfStream from None
-
-    def clone(self) -> MemoryObjectReceiveStream[T_co]:
-        """
-        Create a clone of this receive stream.
-
-        Each clone can be closed separately. Only when all clones have been closed will
-        the receiving end of the memory stream be considered closed by the sending ends.
-
-        :return: the cloned stream
-
-        """
-        if self._closed:
-            raise ClosedResourceError
-
-        return MemoryObjectReceiveStream(_state=self._state)
-
-    def close(self) -> None:
-        """
-        Close the stream.
-
-        This works the exact same way as :meth:`aclose`, but is provided as a special
-        case for the benefit of synchronous callbacks.
-
-        """
-        if not self._closed:
-            self._closed = True
-            self._state.open_receive_channels -= 1
-            if self._state.open_receive_channels == 0:
-                send_events = list(self._state.waiting_senders.keys())
-                for event in send_events:
-                    event.set()
-
-    async def aclose(self) -> None:
-        self.close()
-
-    def statistics(self) -> MemoryObjectStreamStatistics:
-        """
-        Return statistics about the current state of this stream.
-
-        .. versionadded:: 3.0
-        """
-        return self._state.statistics()
-
-    def __enter__(self) -> MemoryObjectReceiveStream[T_co]:
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> None:
-        self.close()
-
-    def __del__(self) -> None:
-        if not self._closed:
-            warnings.warn(
-                f"Unclosed <{self.__class__.__name__} at {id(self):x}>",
-                ResourceWarning,
-                stacklevel=1,
-                source=self,
-            )
-
-
-@dataclass(eq=False)
-class MemoryObjectSendStream(Generic[T_contra], ObjectSendStream[T_contra]):
-    _state: _MemoryObjectStreamState[T_contra]
-    _closed: bool = field(init=False, default=False)
-
-    def __post_init__(self) -> None:
-        self._state.open_send_channels += 1
-
-    def send_nowait(self, item: T_contra) -> None:
-        """
-        Send an item immediately if it can be done without waiting.
-
-        :param item: the item to send
-        :raises ~anyio.ClosedResourceError: if this send stream has been closed
-        :raises ~anyio.BrokenResourceError: if the stream has been closed from the
-            receiving end
-        :raises ~anyio.WouldBlock: if the buffer is full and there are no tasks waiting
-            to receive
-
-        """
-        if self._closed:
-            raise ClosedResourceError
-        if not self._state.open_receive_channels:
-            raise BrokenResourceError
-
-        while self._state.waiting_receivers:
-            receive_event, receiver = self._state.waiting_receivers.popitem(last=False)
-            if not receiver.task_info.has_pending_cancellation():
-                receiver.item = item
-                receive_event.set()
-                return
-
-        if len(self._state.buffer) < self._state.max_buffer_size:
-            self._state.buffer.append(item)
-        else:
-            raise WouldBlock
-
-    async def send(self, item: T_contra) -> None:
-        """
-        Send an item to the stream.
-
-        If the buffer is full, this method blocks until there is again room in the
-        buffer or the item can be sent directly to a receiver.
-
-        :param item: the item to send
-        :raises ~anyio.ClosedResourceError: if this send stream has been closed
-        :raises ~anyio.BrokenResourceError: if the stream has been closed from the
-            receiving end
-
-        """
-        await checkpoint()
-        try:
-            self.send_nowait(item)
-        except WouldBlock:
-            # Wait until there's someone on the receiving end
-            send_event = Event()
-            self._state.waiting_senders[send_event] = item
-            try:
-                await send_event.wait()
-            except BaseException:
-                self._state.waiting_senders.pop(send_event, None)
+            self.mkdir(path, create_parents=True)
+        except FileExistsError:
+            if not exist_ok:
                 raise
 
-            if send_event in self._state.waiting_senders:
-                del self._state.waiting_senders[send_event]
-                raise BrokenResourceError from None
+    def pipe_file(self, path, value, mode="overwrite", **kwargs):
+        """Set the bytes of given file
 
-    def clone(self) -> MemoryObjectSendStream[T_contra]:
+        Avoids copies of the data if possible
         """
-        Create a clone of this send stream.
+        mode = "xb" if mode == "create" else "wb"
+        self.open(path, mode=mode, data=value)
 
-        Each clone can be closed separately. Only when all clones have been closed will
-        the sending end of the memory stream be considered closed by the receiving ends.
+    def rmdir(self, path):
+        path = self._strip_protocol(path)
+        if path == "":
+            # silently avoid deleting FS root
+            return
+        if path in self.pseudo_dirs:
+            if not self.ls(path):
+                self.pseudo_dirs.remove(path)
+            else:
+                raise OSError(ENOTEMPTY, "Directory not empty", path)
+        else:
+            raise FileNotFoundError(path)
 
-        :return: the cloned stream
+    def info(self, path, **kwargs):
+        logger.debug("info: %s", path)
+        path = self._strip_protocol(path)
+        if path in self.pseudo_dirs or any(
+            p.startswith(path + "/") for p in list(self.store) + self.pseudo_dirs
+        ):
+            return {
+                "name": path,
+                "size": 0,
+                "type": "directory",
+            }
+        elif path in self.store:
+            filelike = self.store[path]
+            return {
+                "name": path,
+                "size": filelike.size,
+                "type": "file",
+                "created": getattr(filelike, "created", None),
+            }
+        else:
+            raise FileNotFoundError(path)
 
-        """
-        if self._closed:
-            raise ClosedResourceError
+    def _open(
+        self,
+        path,
+        mode="rb",
+        block_size=None,
+        autocommit=True,
+        cache_options=None,
+        **kwargs,
+    ):
+        path = self._strip_protocol(path)
+        if "x" in mode and self.exists(path):
+            raise FileExistsError
+        if path in self.pseudo_dirs:
+            raise IsADirectoryError(path)
+        parent = path
+        while len(parent) > 1:
+            parent = self._parent(parent)
+            if self.isfile(parent):
+                raise FileExistsError(parent)
+        if mode in ["rb", "ab", "r+b", "a+b"]:
+            if path in self.store:
+                f = self.store[path]
+                if "a" in mode:
+                    # position at the end of file
+                    f.seek(0, 2)
+                else:
+                    # position at the beginning of file
+                    f.seek(0)
+                return f
+            else:
+                raise FileNotFoundError(path)
+        elif mode in {"wb", "w+b", "xb", "x+b"}:
+            if "x" in mode and self.exists(path):
+                raise FileExistsError
+            m = MemoryFile(self, path, kwargs.get("data"))
+            if not self._intrans:
+                m.commit()
+            return m
+        else:
+            name = self.__class__.__name__
+            raise ValueError(f"unsupported file mode for {name}: {mode!r}")
 
-        return MemoryObjectSendStream(_state=self._state)
+    def cp_file(self, path1, path2, **kwargs):
+        path1 = self._strip_protocol(path1)
+        path2 = self._strip_protocol(path2)
+        if self.isfile(path1):
+            self.store[path2] = MemoryFile(
+                self, path2, self.store[path1].getvalue()
+            )  # implicit copy
+        elif self.isdir(path1):
+            if path2 not in self.pseudo_dirs:
+                self.pseudo_dirs.append(path2)
+        else:
+            raise FileNotFoundError(path1)
 
-    def close(self) -> None:
-        """
-        Close the stream.
+    def cat_file(self, path, start=None, end=None, **kwargs):
+        logger.debug("cat: %s", path)
+        path = self._strip_protocol(path)
+        try:
+            return bytes(self.store[path].getbuffer()[start:end])
+        except KeyError as e:
+            raise FileNotFoundError(path) from e
 
-        This works the exact same way as :meth:`aclose`, but is provided as a special
-        case for the benefit of synchronous callbacks.
+    def _rm(self, path):
+        path = self._strip_protocol(path)
+        try:
+            del self.store[path]
+        except KeyError as e:
+            raise FileNotFoundError(path) from e
 
-        """
-        if not self._closed:
-            self._closed = True
-            self._state.open_send_channels -= 1
-            if self._state.open_send_channels == 0:
-                receive_events = list(self._state.waiting_receivers.keys())
-                self._state.waiting_receivers.clear()
-                for event in receive_events:
-                    event.set()
+    def modified(self, path):
+        path = self._strip_protocol(path)
+        try:
+            return self.store[path].modified
+        except KeyError as e:
+            raise FileNotFoundError(path) from e
 
-    async def aclose(self) -> None:
-        self.close()
+    def created(self, path):
+        path = self._strip_protocol(path)
+        try:
+            return self.store[path].created
+        except KeyError as e:
+            raise FileNotFoundError(path) from e
 
-    def statistics(self) -> MemoryObjectStreamStatistics:
-        """
-        Return statistics about the current state of this stream.
+    def isfile(self, path):
+        path = self._strip_protocol(path)
+        return path in self.store
 
-        .. versionadded:: 3.0
-        """
-        return self._state.statistics()
+    def rm(self, path, recursive=False, maxdepth=None):
+        if isinstance(path, str):
+            path = self._strip_protocol(path)
+        else:
+            path = [self._strip_protocol(p) for p in path]
+        paths = self.expand_path(path, recursive=recursive, maxdepth=maxdepth)
+        for p in reversed(paths):
+            if self.isfile(p):
+                self.rm_file(p)
+            # If the expanded path doesn't exist, it is only because the expanded
+            # path was a directory that does not exist in self.pseudo_dirs. This
+            # is possible if you directly create files without making the
+            # directories first.
+            elif not self.exists(p):
+                continue
+            else:
+                self.rmdir(p)
 
-    def __enter__(self) -> MemoryObjectSendStream[T_contra]:
+
+class MemoryFile(BytesIO):
+    """A BytesIO which can't close and works as a context manager
+
+    Can initialise with data. Each path should only be active once at any moment.
+
+    No need to provide fs, path if auto-committing (default)
+    """
+
+    def __init__(self, fs=None, path=None, data=None):
+        logger.debug("open file %s", path)
+        self.fs = fs
+        self.path = path
+        self.created = datetime.now(tz=timezone.utc)
+        self.modified = datetime.now(tz=timezone.utc)
+        if data:
+            super().__init__(data)
+            self.seek(0)
+
+    @property
+    def size(self):
+        return self.getbuffer().nbytes
+
+    def __enter__(self):
         return self
 
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> None:
-        self.close()
+    def close(self):
+        pass
 
-    def __del__(self) -> None:
-        if not self._closed:
-            warnings.warn(
-                f"Unclosed <{self.__class__.__name__} at {id(self):x}>",
-                ResourceWarning,
-                stacklevel=1,
-                source=self,
-            )
+    def discard(self):
+        pass
+
+    def commit(self):
+        self.fs.store[self.path] = self
+        self.modified = datetime.now(tz=timezone.utc)
