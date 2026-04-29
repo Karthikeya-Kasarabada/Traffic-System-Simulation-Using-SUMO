@@ -1,48 +1,51 @@
-"""
-Charset-Normalizer
-~~~~~~~~~~~~~~
-The Real First Universal Charset Detector.
-A library that helps you read text from an unknown charset encoding.
-Motivated by chardet, This package is trying to resolve the issue by taking a new approach.
-All IANA character set names for which the Python core library provides codecs are supported.
+from typing import Any, Optional
 
-Basic usage:
-   >>> from charset_normalizer import from_bytes
-   >>> results = from_bytes('Bсеки човек има право на образование. Oбразованието!'.encode('utf_8'))
-   >>> best_guess = results.best()
-   >>> str(best_guess)
-   'Bсеки човек има право на образование. Oбразованието!'
+from .main import dotenv_values, find_dotenv, get_key, load_dotenv, set_key, unset_key
 
-Others methods and usages are available - see the full documentation
-at <https://github.com/Ousret/charset_normalizer>.
-:copyright: (c) 2021 by Ahmed TAHRI
-:license: MIT, see LICENSE for more details.
-"""
 
-from __future__ import annotations
+def load_ipython_extension(ipython: Any) -> None:
+    from .ipython import load_ipython_extension
 
-import logging
+    load_ipython_extension(ipython)
 
-from .api import from_bytes, from_fp, from_path, is_binary
-from .legacy import detect
-from .models import CharsetMatch, CharsetMatches
-from .utils import set_logging_handler
-from .version import VERSION, __version__
 
-__all__ = (
-    "from_fp",
-    "from_path",
-    "from_bytes",
-    "is_binary",
-    "detect",
-    "CharsetMatch",
-    "CharsetMatches",
-    "__version__",
-    "VERSION",
-    "set_logging_handler",
-)
+def get_cli_string(
+    path: Optional[str] = None,
+    action: Optional[str] = None,
+    key: Optional[str] = None,
+    value: Optional[str] = None,
+    quote: Optional[str] = None,
+):
+    """Returns a string suitable for running as a shell script.
 
-# Attach a NullHandler to the top level logger by default
-# https://docs.python.org/3.3/howto/logging.html#configuring-logging-for-a-library
+    Useful for converting a arguments passed to a fabric task
+    to be passed to a `local` or `run` command.
+    """
+    command = ["dotenv"]
+    if quote:
+        command.append(f"-q {quote}")
+    if path:
+        command.append(f"-f {path}")
+    if action:
+        command.append(action)
+        if key:
+            command.append(key)
+            if value:
+                if " " in value:
+                    command.append(f'"{value}"')
+                else:
+                    command.append(value)
 
-logging.getLogger("charset_normalizer").addHandler(logging.NullHandler())
+    return " ".join(command).strip()
+
+
+__all__ = [
+    "get_cli_string",
+    "load_dotenv",
+    "dotenv_values",
+    "get_key",
+    "set_key",
+    "unset_key",
+    "find_dotenv",
+    "load_ipython_extension",
+]
