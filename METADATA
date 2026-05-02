@@ -1,257 +1,204 @@
 Metadata-Version: 2.4
-Name: fsspec
-Version: 2026.3.0
-Summary: File-system specification
-Project-URL: Changelog, https://filesystem-spec.readthedocs.io/en/latest/changelog.html
-Project-URL: Documentation, https://filesystem-spec.readthedocs.io/en/latest/
-Project-URL: Homepage, https://github.com/fsspec/filesystem_spec
-Maintainer-email: Martin Durant <mdurant@anaconda.com>
+Name: idna
+Version: 3.13
+Summary: Internationalized Domain Names in Applications (IDNA)
+Author-email: Kim Davies <kim+pypi@gumleaf.org>
+Requires-Python: >=3.8
+Description-Content-Type: text/x-rst
 License-Expression: BSD-3-Clause
-License-File: LICENSE
-Keywords: file
-Classifier: Development Status :: 4 - Beta
+Classifier: Development Status :: 5 - Production/Stable
 Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: System Administrators
 Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3 :: Only
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
 Classifier: Programming Language :: Python :: 3.10
 Classifier: Programming Language :: Python :: 3.11
 Classifier: Programming Language :: Python :: 3.12
 Classifier: Programming Language :: Python :: 3.13
 Classifier: Programming Language :: Python :: 3.14
-Requires-Python: >=3.10
-Provides-Extra: abfs
-Requires-Dist: adlfs; extra == 'abfs'
-Provides-Extra: adl
-Requires-Dist: adlfs; extra == 'adl'
-Provides-Extra: arrow
-Requires-Dist: pyarrow>=1; extra == 'arrow'
-Provides-Extra: dask
-Requires-Dist: dask; extra == 'dask'
-Requires-Dist: distributed; extra == 'dask'
-Provides-Extra: dev
-Requires-Dist: pre-commit; extra == 'dev'
-Requires-Dist: ruff>=0.5; extra == 'dev'
-Provides-Extra: doc
-Requires-Dist: numpydoc; extra == 'doc'
-Requires-Dist: sphinx; extra == 'doc'
-Requires-Dist: sphinx-design; extra == 'doc'
-Requires-Dist: sphinx-rtd-theme; extra == 'doc'
-Requires-Dist: yarl; extra == 'doc'
-Provides-Extra: dropbox
-Requires-Dist: dropbox; extra == 'dropbox'
-Requires-Dist: dropboxdrivefs; extra == 'dropbox'
-Requires-Dist: requests; extra == 'dropbox'
-Provides-Extra: entrypoints
-Provides-Extra: full
-Requires-Dist: adlfs; extra == 'full'
-Requires-Dist: aiohttp!=4.0.0a0,!=4.0.0a1; extra == 'full'
-Requires-Dist: dask; extra == 'full'
-Requires-Dist: distributed; extra == 'full'
-Requires-Dist: dropbox; extra == 'full'
-Requires-Dist: dropboxdrivefs; extra == 'full'
-Requires-Dist: fusepy; extra == 'full'
-Requires-Dist: gcsfs>2024.2.0; extra == 'full'
-Requires-Dist: libarchive-c; extra == 'full'
-Requires-Dist: ocifs; extra == 'full'
-Requires-Dist: panel; extra == 'full'
-Requires-Dist: paramiko; extra == 'full'
-Requires-Dist: pyarrow>=1; extra == 'full'
-Requires-Dist: pygit2; extra == 'full'
-Requires-Dist: requests; extra == 'full'
-Requires-Dist: s3fs>2024.2.0; extra == 'full'
-Requires-Dist: smbprotocol; extra == 'full'
-Requires-Dist: tqdm; extra == 'full'
-Provides-Extra: fuse
-Requires-Dist: fusepy; extra == 'fuse'
-Provides-Extra: gcs
-Requires-Dist: gcsfs>2024.2.0; extra == 'gcs'
-Provides-Extra: git
-Requires-Dist: pygit2; extra == 'git'
-Provides-Extra: github
-Requires-Dist: requests; extra == 'github'
-Provides-Extra: gs
-Requires-Dist: gcsfs; extra == 'gs'
-Provides-Extra: gui
-Requires-Dist: panel; extra == 'gui'
-Provides-Extra: hdfs
-Requires-Dist: pyarrow>=1; extra == 'hdfs'
-Provides-Extra: http
-Requires-Dist: aiohttp!=4.0.0a0,!=4.0.0a1; extra == 'http'
-Provides-Extra: libarchive
-Requires-Dist: libarchive-c; extra == 'libarchive'
-Provides-Extra: oci
-Requires-Dist: ocifs; extra == 'oci'
-Provides-Extra: s3
-Requires-Dist: s3fs>2024.2.0; extra == 's3'
-Provides-Extra: sftp
-Requires-Dist: paramiko; extra == 'sftp'
-Provides-Extra: smb
-Requires-Dist: smbprotocol; extra == 'smb'
-Provides-Extra: ssh
-Requires-Dist: paramiko; extra == 'ssh'
-Provides-Extra: test
-Requires-Dist: aiohttp!=4.0.0a0,!=4.0.0a1; extra == 'test'
-Requires-Dist: numpy; extra == 'test'
-Requires-Dist: pytest; extra == 'test'
-Requires-Dist: pytest-asyncio!=0.22.0; extra == 'test'
-Requires-Dist: pytest-benchmark; extra == 'test'
-Requires-Dist: pytest-cov; extra == 'test'
-Requires-Dist: pytest-mock; extra == 'test'
-Requires-Dist: pytest-recording; extra == 'test'
-Requires-Dist: pytest-rerunfailures; extra == 'test'
-Requires-Dist: requests; extra == 'test'
-Provides-Extra: test-downstream
-Requires-Dist: aiobotocore<3.0.0,>=2.5.4; extra == 'test-downstream'
-Requires-Dist: dask[dataframe,test]; extra == 'test-downstream'
-Requires-Dist: moto[server]<5,>4; extra == 'test-downstream'
-Requires-Dist: pytest-timeout; extra == 'test-downstream'
-Requires-Dist: xarray; extra == 'test-downstream'
-Provides-Extra: test-full
-Requires-Dist: adlfs; extra == 'test-full'
-Requires-Dist: aiohttp!=4.0.0a0,!=4.0.0a1; extra == 'test-full'
-Requires-Dist: backports-zstd; (python_version < '3.14') and extra == 'test-full'
-Requires-Dist: cloudpickle; extra == 'test-full'
-Requires-Dist: dask; extra == 'test-full'
-Requires-Dist: distributed; extra == 'test-full'
-Requires-Dist: dropbox; extra == 'test-full'
-Requires-Dist: dropboxdrivefs; extra == 'test-full'
-Requires-Dist: fastparquet; extra == 'test-full'
-Requires-Dist: fusepy; extra == 'test-full'
-Requires-Dist: gcsfs; extra == 'test-full'
-Requires-Dist: jinja2; extra == 'test-full'
-Requires-Dist: kerchunk; extra == 'test-full'
-Requires-Dist: libarchive-c; extra == 'test-full'
-Requires-Dist: lz4; extra == 'test-full'
-Requires-Dist: notebook; extra == 'test-full'
-Requires-Dist: numpy; extra == 'test-full'
-Requires-Dist: ocifs; extra == 'test-full'
-Requires-Dist: pandas<3.0.0; extra == 'test-full'
-Requires-Dist: panel; extra == 'test-full'
-Requires-Dist: paramiko; extra == 'test-full'
-Requires-Dist: pyarrow; extra == 'test-full'
-Requires-Dist: pyarrow>=1; extra == 'test-full'
-Requires-Dist: pyftpdlib; extra == 'test-full'
-Requires-Dist: pygit2; extra == 'test-full'
-Requires-Dist: pytest; extra == 'test-full'
-Requires-Dist: pytest-asyncio!=0.22.0; extra == 'test-full'
-Requires-Dist: pytest-benchmark; extra == 'test-full'
-Requires-Dist: pytest-cov; extra == 'test-full'
-Requires-Dist: pytest-mock; extra == 'test-full'
-Requires-Dist: pytest-recording; extra == 'test-full'
-Requires-Dist: pytest-rerunfailures; extra == 'test-full'
-Requires-Dist: python-snappy; extra == 'test-full'
-Requires-Dist: requests; extra == 'test-full'
-Requires-Dist: smbprotocol; extra == 'test-full'
-Requires-Dist: tqdm; extra == 'test-full'
-Requires-Dist: urllib3; extra == 'test-full'
-Requires-Dist: zarr; extra == 'test-full'
-Requires-Dist: zstandard; (python_version < '3.14') and extra == 'test-full'
-Provides-Extra: tqdm
-Requires-Dist: tqdm; extra == 'tqdm'
-Description-Content-Type: text/markdown
+Classifier: Programming Language :: Python :: Implementation :: CPython
+Classifier: Programming Language :: Python :: Implementation :: PyPy
+Classifier: Topic :: Internet :: Name Service (DNS)
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Classifier: Topic :: Utilities
+License-File: LICENSE.md
+Requires-Dist: ruff >= 0.6.2 ; extra == "all"
+Requires-Dist: mypy >= 1.11.2 ; extra == "all"
+Requires-Dist: pytest >= 8.3.2 ; extra == "all"
+Project-URL: Changelog, https://github.com/kjd/idna/blob/master/HISTORY.rst
+Project-URL: Issue tracker, https://github.com/kjd/idna/issues
+Project-URL: Source, https://github.com/kjd/idna
+Provides-Extra: all
 
-# filesystem_spec
+Internationalized Domain Names in Applications (IDNA)
+=====================================================
 
-[![PyPI version](https://badge.fury.io/py/fsspec.svg)](https://pypi.python.org/pypi/fsspec/)
-[![Anaconda-Server Badge](https://anaconda.org/conda-forge/fsspec/badges/version.svg)](https://anaconda.org/conda-forge/fsspec)
-![Build](https://github.com/fsspec/filesystem_spec/workflows/CI/badge.svg)
-[![Docs](https://readthedocs.org/projects/filesystem-spec/badge/?version=latest)](https://filesystem-spec.readthedocs.io/en/latest/?badge=latest)
+Support for `Internationalized Domain Names in
+Applications (IDNA) <https://tools.ietf.org/html/rfc5891>`_
+and `Unicode IDNA Compatibility Processing
+<https://unicode.org/reports/tr46/>`_.
 
-A specification for pythonic filesystems.
+The latest versions of these standards supplied here provide
+more comprehensive language coverage and reduce the potential of
+allowing domains with known security vulnerabilities. This library
+is a suitable replacement for the “encodings.idna”
+module that comes with the Python standard library, but which
+only supports an older superseded IDNA specification from 2003.
 
-## Install
+Basic functions are simply executed:
 
-```bash
-pip install fsspec
-```
+.. code-block:: pycon
 
-would install the base fsspec. Various optionally supported features might require specification of custom
-extra require, e.g. `pip install fsspec[ssh]` will install dependencies for `ssh` backends support.
-Use `pip install fsspec[full]` for installation of all known extra dependencies.
-
-Up-to-date package also provided through conda-forge distribution:
-
-```bash
-conda install -c conda-forge fsspec
-```
+    >>> import idna
+    >>> idna.encode('ドメイン.テスト')
+    b'xn--eckwd4c7c.xn--zckzah'
+    >>> print(idna.decode('xn--eckwd4c7c.xn--zckzah'))
+    ドメイン.テスト
 
 
-## Purpose
+Installation
+------------
 
-To produce a template or specification for a file-system interface, that specific implementations should follow,
-so that applications making use of them can rely on a common behaviour and not have to worry about the specific
-internal implementation decisions with any given backend. Many such implementations are included in this package,
-or in sister projects such as `s3fs` and `gcsfs`.
+This package is available for installation from PyPI via the
+typical mechanisms, such as:
 
-In addition, if this is well-designed, then additional functionality, such as a key-value store or FUSE
-mounting of the file-system implementation may be available for all implementations "for free".
+.. code-block:: bash
 
-## Documentation
+    $ python3 -m pip install idna
 
-Please refer to [RTD](https://filesystem-spec.readthedocs.io/en/latest/?badge=latest)
 
-## Develop
+Usage
+-----
 
-fsspec uses GitHub Actions for CI. Environment files can be found
-in the "ci/" directory. Note that the main environment is called "py38",
-but it is expected that the version of python installed be adjustable at
-CI runtime. For local use, pick a version suitable for you.
+For typical usage, the ``encode`` and ``decode`` functions will take a
+domain name argument and perform a conversion to ASCII-compatible encoding
+(known as A-labels), or to Unicode strings (known as U-labels)
+respectively.
 
-```bash
-# For a new environment (mamba / conda).
-mamba create -n fsspec -c conda-forge  python=3.10 -y
-conda activate fsspec
+.. code-block:: pycon
 
-# Standard dev install with docs and tests.
-pip install -e ".[dev,doc,test]"
+    >>> import idna
+    >>> idna.encode('ドメイン.テスト')
+    b'xn--eckwd4c7c.xn--zckzah'
+    >>> print(idna.decode('xn--eckwd4c7c.xn--zckzah'))
+    ドメイン.テスト
 
-# Full tests except for downstream
-pip install s3fs
-pip uninstall s3fs
-pip install -e .[dev,doc,test_full]
-pip install s3fs --no-deps
-pytest -v
+Conversions can be applied at a per-label basis using the ``ulabel`` or
+``alabel`` functions if necessary:
 
-# Downstream tests.
-sh install_s3fs.sh
-# Windows powershell.
-install_s3fs.sh
-```
+.. code-block:: pycon
 
-### Testing
+    >>> idna.alabel('测试')
+    b'xn--0zwm56d'
 
-Tests can be run in the dev environment, if activated, via ``pytest fsspec``.
 
-The full fsspec suite requires a system-level docker, docker-compose, and fuse
-installation. If only making changes to one backend implementation, it is
-not generally necessary to run all tests locally.
+Compatibility Mapping (UTS #46)
++++++++++++++++++++++++++++++++
 
-It is expected that contributors ensure that any change to fsspec does not
-cause issues or regressions for either other fsspec-related packages such
-as gcsfs and s3fs, nor for downstream users of fsspec. The "downstream" CI
-run and corresponding environment file run a set of tests from the dask
-test suite, and very minimal tests against pandas and zarr from the
-test_downstream.py module in this repo.
+This library provides support for `Unicode IDNA Compatibility
+Processing <https://unicode.org/reports/tr46/>`_ which normalizes input from
+different potential ways a user may input a domain prior to performing the IDNA
+conversion operations. This functionality, known as a 
+`mapping <https://tools.ietf.org/html/rfc5895>`_, is considered by the
+specification to be a local user-interface issue distinct from IDNA
+conversion functionality.
 
-### Code Formatting
+For example, “Königsgäßchen” is not a permissible label as *LATIN
+CAPITAL LETTER K* is not allowed (nor are capital letters in general).
+UTS 46 will convert this into lower case prior to applying the IDNA
+conversion.
 
-fsspec uses [Black](https://black.readthedocs.io/en/stable) to ensure
-a consistent code format throughout the project.
-Run ``black fsspec`` from the root of the filesystem_spec repository to
-auto-format your code. Additionally, many editors have plugins that will apply
-``black`` as you edit files. ``black`` is included in the ``tox`` environments.
+.. code-block:: pycon
 
-Optionally, you may wish to setup [pre-commit hooks](https://pre-commit.com) to
-automatically run ``black`` when you make a git commit.
-Run ``pre-commit install --install-hooks`` from the root of the
-filesystem_spec repository to setup pre-commit hooks. ``black`` will now be run
-before you commit, reformatting any changed files. You can format without
-committing via ``pre-commit run`` or skip these checks with ``git commit
---no-verify``.
+    >>> import idna
+    >>> idna.encode('Königsgäßchen')
+    ...
+    idna.core.InvalidCodepoint: Codepoint U+004B at position 1 of 'Königsgäßchen' not allowed
+    >>> idna.encode('Königsgäßchen', uts46=True)
+    b'xn--knigsgchen-b4a3dun'
+    >>> print(idna.decode('xn--knigsgchen-b4a3dun'))
+    königsgäßchen
 
-## Support
 
-Work on this repository is supported in part by:
+Exceptions
+----------
 
-"Anaconda, Inc. - Advancing AI through open source."
+All errors raised during the conversion following the specification
+should raise an exception derived from the ``idna.IDNAError`` base
+class.
 
-<a href="https://anaconda.com/"><img src="https://camo.githubusercontent.com/b8555ef2222598ed37ce38ac86955febbd25de7619931bb7dd3c58432181d3b6/68747470733a2f2f626565776172652e6f72672f636f6d6d756e6974792f6d656d626572732f616e61636f6e64612f616e61636f6e64612d6c617267652e706e67" alt="anaconda logo" width="40%"/></a>
+More specific exceptions that may be generated as ``idna.IDNABidiError``
+when the error reflects an illegal combination of left-to-right and
+right-to-left characters in a label; ``idna.InvalidCodepoint`` when
+a specific codepoint is an illegal character in an IDN label (i.e.
+INVALID); and ``idna.InvalidCodepointContext`` when the codepoint is
+illegal based on its position in the string (i.e. it is CONTEXTO or CONTEXTJ
+but the contextual requirements are not satisfied.)
+
+Building and Diagnostics
+------------------------
+
+The IDNA and UTS 46 functionality relies upon pre-calculated lookup
+tables for performance. These tables are derived from computing against
+eligibility criteria in the respective standards using the command-line
+script ``tools/idna-data``.
+
+This tool will fetch relevant codepoint data from the Unicode repository
+and perform the required calculations to identify eligibility. There are
+three main modes:
+
+* ``idna-data make-libdata``. Generates ``idnadata.py`` and
+  ``uts46data.py``, the pre-calculated lookup tables used for IDNA and
+  UTS 46 conversions. Implementers who wish to track this library against
+  a different Unicode version may use this tool to manually generate a
+  different version of the ``idnadata.py`` and ``uts46data.py`` files.
+
+* ``idna-data make-table``. Generate a table of the IDNA disposition
+  (e.g. PVALID, CONTEXTJ, CONTEXTO) in the format found in Appendix
+  B.1 of RFC 5892 and the pre-computed tables published by `IANA
+  <https://www.iana.org/>`_.
+
+* ``idna-data U+0061``. Prints debugging output on the various
+  properties associated with an individual Unicode codepoint (in this
+  case, U+0061), that are used to assess the IDNA and UTS 46 status of a
+  codepoint. This is helpful in debugging or analysis.
+
+The tool accepts a number of arguments, described using ``idna-data -h``.
+Most notably, the ``--version`` argument allows the specification
+of the version of Unicode to be used in computing the table data. For
+example, ``idna-data --version 9.0.0 make-libdata`` will generate
+library data against Unicode 9.0.0.
+
+
+Additional Notes
+----------------
+
+* **Packages**. The latest tagged release version is published in the
+  `Python Package Index <https://pypi.org/project/idna/>`_.
+
+* **Version support**. This library supports Python 3.8 and higher.
+  As this library serves as a low-level toolkit for a variety of
+  applications, many of which strive for broad compatibility with older
+  Python versions, there is no rush to remove older interpreter support.
+  Support for older versions are likely to be removed from new releases
+  as automated tests can no longer easily be run, i.e. once the Python
+  version is officially end-of-life.
+
+* **Testing**. The library has a test suite based on each rule of the
+  IDNA specification, as well as tests that are provided as part of the
+  Unicode Technical Standard 46, `Unicode IDNA Compatibility Processing
+  <https://unicode.org/reports/tr46/>`_.
+
+* **Emoji**. It is an occasional request to support emoji domains in
+  this library. Encoding of symbols like emoji is expressly prohibited by
+  the IDNA technical standard, and emoji domains are broadly phased
+  out across the domain industry due to associated security risks.
+
+* **Transitional processing**. Unicode 16.0.0 removed transitional
+  processing so the `transitional` argument for the encode() method
+  no longer has any effect and will be removed at a later date.
+
